@@ -1,5 +1,5 @@
 #change this to your wd when you pull latest
-dir <- 'Documents/R/HomeLoanDetection'
+dir <- 'HomeLoanDetection'
 
 #setwd
 getwd()
@@ -58,9 +58,10 @@ print(temp[1:300,])
 
 levels(bureau$CREDIT_ACTIVE)
 
-app_bur <- merge(application_train, bureau, by='SK_ID_CURR', how='left')
+app_bur <- merge(application_train, bureau, by='SK_ID_CURR', all.x = TRUE)
 
 app_bur_inner <- merge(application_train, bureau, by='SK_ID_CURR')
+
 
 #feature generation
 final_data <- data.frame(id=application_train$SK_ID_CURR)
@@ -82,17 +83,44 @@ final_data$credit_type <- app_bur[match(unique(app_bur$SK_ID_BUREAU), app_bur$SK
   
 levels(bureau$CREDIT_TYPE)
 
-final_data <- app_bur %>%
-  group_by(SK) %>%
-  select('CREDIT_TYPE') %>%
-  slice(1) %>%
-  ungroup
+#final_data$CREDIT_TYPE <- 
+status_id <- app_bur[!duplicated(app_bur$SK_ID_CURR),c('SK_ID_CURR', 'CREDIT_TYPE')]
+head(status_id, n=100)
+final_data <- merge(final_data, status_id, by.x = c('id'), by.y = c('SK_ID_CURR'), all.x = TRUE)
+
+head(final_data, n=100)
+
+max_overdue <- aggregate(app_bur$AMT_CREDIT_MAX_OVERDUE, by = list(app_bur$SK_ID_CURR), max)
+
+max_overdue <- merge(max_overdue, application_train[,c('SK_ID_CURR', 'AMT_CREDIT')], by.x = c('Group.1'), by.y = c('SK_ID_CURR'))
+max_overdue$overdue_ratio <- max_overdue$Group.1/max_overdue$AMT_CREDIT
+
+final_data <- merge(final_data, max_overdue[,c('Group.1', 'overdue_ratio')], by.x = c('id'), by.y = c('Group.1'))
+
+max_dpd <- aggregate(app_bur$CREDIT_DAY_OVERDUE, by = list(app_bur$SK_ID_CURR), max)
+
+final_data <- merge(final_data, max_dpd, by.x = 'id', by.y = 'Group.1')
+
+final_data$max_dpd <- final_data$x
+
+max_prolong <- aggregate(app_bur$CNT_CREDIT_PROLONG, by = list(app_bur$SK_ID_CURR), max)
+final_data <- merge(final_data, max_prolong, by.x = 'id', by.y = 'Group.1')
+final_data$max_prolong <- final_data$x.y
+
+count_overdue <- as.data.frame(table(unique(app_bur[app_bur$AMT_CREDIT_SUM_OVERDUE > 0,])$SK_ID_CURR))
+sum(count_overdue$Freq)
+max(count_overdue$Freq)
+
+final_data <- merge(final_data, count_overdue, by.x = 'id', by.y = 'Var1', all.x = TRUE)
+
+#ADD TARGET AND SHIT
+
 
 #simple nn
 if(!require('nnet')) install.packages('nnet')
 library(nnet)
 
-ann <- nnet(TARGET~., MaxNWts = 10000, data=application_train, size = 30)
+ann <- nnet(TARGET~., MaxNWts = 10000, data=final_data, size = 30)
 
 ann_pred <- predict(ann, newdata = application_test, type='raw')
 
