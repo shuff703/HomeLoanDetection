@@ -86,14 +86,8 @@ final_data$status_flag <- ifelse(final_data$id %in% bad_records$SK_ID_CURR, 1, 0
 #5243 bad status flags
 sum(final_data$status_flag == 1)
 
-#Credit Type - Cash, Car, etc.
-#THIS IS JUST WHAT TYPE OF LOAN, MAJORITY ARE JUST CONSUMER CREDIT(CREDIT CARDS)
-#TWWB DUNNO WHAT CHANGED, GOING TO OMIT AND REVISIT
-#final_data$credit_type <- app_bur[match(unique(app_bur$SK_ID_BUREAU), app_bur$SK_ID_BUREAU),]
-
 levels(bureau$CREDIT_TYPE)
 
-#final_data$CREDIT_TYPE <- 
 status_id <- app_bur[!duplicated(app_bur$SK_ID_CURR),c('SK_ID_CURR', 'CREDIT_TYPE')]
 head(status_id, n=100)
 final_data <- merge(final_data, status_id, by.x = c('id'), by.y = c('SK_ID_CURR'), all.x = TRUE)
@@ -122,25 +116,22 @@ final_data$max_prolong <- final_data$x.y
 #total overdue balance count payments = 3644
 #sum(count_overdue$Freq)
 #max overdue balance count = 8
-max(count_overdue$Freq)
+#max(count_overdue$Freq)
 
-final_data <- merge(final_data, count_overdue, by.x = 'id', by.y = 'Var1', all.x = TRUE)
+#final_data <- merge(final_data, count_overdue, by.x = 'id', by.y = 'Var1', all.x = TRUE)
 
-final_data$count_overdue <- final_data$Freq
+#final_data$count_overdue <- final_data$Freq
 
 #DROP COLUMNS THAT NEEDED TO BE RENAMED 
 #THIS IS A RESULT OF PACKAGES RENAMING BY DEFAULT
-drops <- c('x.x', 'x.y', 'Freq', 'TARGET', 'count_overdue')
-final_data <- final_data[,!(names(final_data) %in% c('x.x', 'x.y', 'Freq', 'TARGET', 'count_overdue'))]
+drops <- c('x.x', 'x.y', 'Freq')
+final_data <- final_data[,!(names(final_data) %in% drops)]
 #final_data <- subset(final_data, select = -c('x.x', 'x.y', 'Freq', 'TARGET'))
 
-#FACTORIZE INT DATA?
-final_data$class <- as.factor(final_data$class)
-#final_data$max_dpd <- as.factor(final_data$max_dpd)
-#max_dpd is numeric... sorry
-final_data$max_dpd <- as.numeric(test_data$max_dpd)
+#FACTORIZE INT DATA WITH LOW MAX VALUES
+max(final_data$max_prolong)
 final_data$max_prolong <- as.factor(final_data$max_prolong)
-final_data$count_overdue <- as.factor(final_data$count_overdue)
+#final_data$count_overdue <- as.factor(final_data$count_overdue)
 final_data$class <- as.factor(final_data$class)
 
 #RECREATE THE FEATURES FOR TEST
