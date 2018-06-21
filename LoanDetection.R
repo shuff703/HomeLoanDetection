@@ -72,7 +72,7 @@ app_bur <- merge(application_train, bureau, by='SK_ID_CURR', all.x = TRUE)
 #feature generation
 final_data <- data.frame(id=application_train$SK_ID_CURR)
 final_data$class <- application_train$TARGET
-final_data$class <- as.factor(application_train$TARGET)
+#final_data$class <- as.factor(application_train$TARGET)
 final_data$credit_vs_income <- application_train$AMT_CREDIT/application_train$AMT_INCOME_TOTAL
 final_data$annuity_vs_income <- application_train$AMT_ANNUITY/application_train$AMT_INCOME_TOTAL
 final_data$price_vs_loan <- application_train$AMT_GOODS_PRICE/application_train$AMT_CREDIT
@@ -132,7 +132,6 @@ final_data <- final_data[,!(names(final_data) %in% drops)]
 max(final_data$max_prolong)
 final_data$max_prolong <- as.factor(final_data$max_prolong)
 #final_data$count_overdue <- as.factor(final_data$count_overdue)
-final_data$class <- as.factor(final_data$class)
 
 #RECREATE THE FEATURES FOR TEST
 app_bur <- merge(application_test, bureau, by='SK_ID_CURR', all.x = TRUE)
@@ -146,17 +145,9 @@ test_data$price_vs_loan <- application_test$AMT_GOODS_PRICE/application_test$AMT
 #Generate feature for bad debt or sold credit report status
 bad_records <- filter(app_bur, app_bur$CREDIT_ACTIVE %in% c('Bad debt', 'Sold'))
 test_data$status_flag <- ifelse(test_data$id %in% bad_records$SK_ID_CURR, 1, 0)
-sum(bad_records)
 
-#5243 records esketit
-#sum(test_data$status_flag == 1)
-
-#Credit Type - Cash, Car, etc.
-#type_doe <- app_bur[match(unique(app_bur$SK_ID_BUREAU), app_bur$SK_ID_BUREAU),c('SK_ID_CURR', 'CREDIT_TYPE')]
-#est_data$CREDIT_TYPE <- merge(test_data, type_doe[,c('SK_ID_CURR', 'CREDIT_TYPE')], by.x = 'id', by.y = 'SK_ID_CURR')
-
-
-#app_bur %>% group_by(SK_ID_CURR) %>% 
+#796 records esketit
+sum(test_data$status_flag == 1)
 
 levels(bureau$CREDIT_TYPE)
 
@@ -188,29 +179,22 @@ max_prolong <- aggregate(app_bur$CNT_CREDIT_PROLONG, by = list(app_bur$SK_ID_CUR
 test_data <- merge(test_data, max_prolong, by.x = 'id', by.y = 'Group.1')
 test_data$max_prolong <- test_data$x.y
 
-count_overdue <- as.data.frame(table(unique(app_bur[app_bur$AMT_CREDIT_SUM_OVERDUE > 0,])$SK_ID_CURR))
+#COLUMN IS SHIT
+#count_overdue <- as.data.frame(table(unique(app_bur[app_bur$AMT_CREDIT_SUM_OVERDUE > 0,])$SK_ID_CURR))
 #total overdue balance count payments = 3644
-sum(count_overdue$Freq)
+#sum(count_overdue$Freq)
 #max overdue balance count = 8
-max(count_overdue$Freq)
-
-test_data <- merge(test_data, count_overdue, by.x = 'id', by.y = 'Var1', all.x = TRUE)
-
-test_data$count_overdue <- test_data$Freq
+#max(count_overdue$Freq)
+#test_data <- merge(test_data, count_overdue, by.x = 'id', by.y = 'Var1', all.x = TRUE)
+#test_data$count_overdue <- test_data$Freq
 
 #DROP COLUMNS THAT NEEDED TO BE RENAMED 
 #THIS IS A RESULT OF PACKAGES RENAMING BY DEFAULT
-drops <- c('x.x', 'x.y', 'Freq', 'TARGET', 'count_overdue')
+drops <- c('x.x', 'x.y', 'Freq')
 test_data <- test_data[,!(names(test_data) %in% drops)]
 
 #FACTORIZE INT DATA?
-#final_data$class <- as.factor(final_data$class)
-#max_dpd is numeric... sorry
-test_data$max_dpd <- as.numeric(test_data$max_dpd)
 test_data$max_prolong <- as.factor(test_data$max_prolong)
-test_data$count_overdue <- as.factor(test_data$count_overdue)
-test_data$class <- as.factor(test_data$class)
-levels(test_data$max_dpd)
 
 #GONNA HAVE TO CLEAN (TRAIN)
 sum(is.na(final_data$credit_vs_income))
@@ -221,10 +205,9 @@ sum(is.na(final_data$CREDIT_TYPE))
 sum(is.na(final_data$overdue_ratio))
 sum(is.na(final_data$max_dpd))
 sum(is.na(final_data$max_prolong))
-sum(is.na(final_data$count_overdue))
-sum(is.na(final_data$class), na.rm = TRUE)
+#sum(is.na(final_data$count_overdue))
+sum(is.na(final_data$class))
 
-sum(final_data$count_overdue)
 
 #GONNA HAVE TO CLEAN (TEST)
 sum(is.na(test_data$credit_vs_income))
@@ -235,24 +218,24 @@ sum(is.na(test_data$CREDIT_TYPE))
 sum(is.na(test_data$overdue_ratio))
 sum(is.na(test_data$max_dpd))
 sum(is.na(test_data$max_prolong))
-sum(is.na(test_data$count_overdue))
+#sum(is.na(test_data$count_overdue))
 
 #COMPUTE VALUES
-final_data$annuity_vs_income <- ifelse(is.na(final_data$annuity_vs_income), mean(final_data$annuity_vs_income, na.rm = TRUE), final_data$annuity_vs_income)
-final_data$price_vs_loan <- ifelse(is.na(final_data$price_vs_loan), mean(final_data$price_vs_loan, na.rm = TRUE), final_data$price_vs_loan)
-final_data$annuity_vs_income <- ifelse(is.na(final_data$annuity_vs_income), mean(final_data$annuity_vs_income, na.rm = TRUE), final_data$annuity_vs_income)
+#final_data$annuity_vs_income <- ifelse(is.na(final_data$annuity_vs_income), mean(final_data$annuity_vs_income, na.rm = TRUE), final_data$annuity_vs_income)
+#final_data$price_vs_loan <- ifelse(is.na(final_data$price_vs_loan), mean(final_data$price_vs_loan, na.rm = TRUE), final_data$price_vs_loan)
+#final_data$annuity_vs_income <- ifelse(is.na(final_data$annuity_vs_income), mean(final_data$annuity_vs_income, na.rm = TRUE), final_data$annuity_vs_income)
 #final_data$annuity_vs_income <- ifelse(is.na(final_data$annuity_vs_income), mean(final_data$annuity_vs_income, na.rm = TRUE), final_data$annuity_vs_income)
 #final_data$CREDIT_TYPE <- addNA(final_data$CREDIT_TYPE)
 #final_data$CREDIT_TYPE <- ifelse(is.na(final_data$CREDIT_TYPE), as.factor(NA), as.factor(final_data$CREDIT_TYPE))
-levels <- final_data$CREDIT_TYPE
-levels[length(levels) + 1] <- "None"
-final_data$CREDIT_TYPE <- factor(final_data$CREDIT_TYPE, levels = levels)
-final_data$CREDIT_TYPE[is.na(final_data$CREDIT_TYPE)] <- "None"
-levels(final_data$CREDIT_TYPE)
-test_data$credit
+#levels <- final_data$CREDIT_TYPE
+#levels[length(levels) + 1] <- "None"
+#final_data$CREDIT_TYPE <- factor(final_data$CREDIT_TYPE, levels = levels)
+#final_data$CREDIT_TYPE[is.na(final_data$CREDIT_TYPE)] <- "None"
+#levels(final_data$CREDIT_TYPE)
+#test_data$credit
 
-final_data$class <- as.numeric(final_data$class)
-final_data$max_dpd <- as.numeric(final_data$max_dpd)
+#final_data$class <- as.numeric(final_data$class)
+#final_data$max_dpd <- as.numeric(final_data$max_dpd)
 
 #simple nn
 #ONLY USING THE GENERATED FEATURES FOR FIRST ITERATION
@@ -267,11 +250,9 @@ if(!require('e1071')) install.packages('e1071')
 library(e1071)
 cross_val <- tune.nnet(class~., MaxNWts = 10000, data=final_data, size = 10)
 
-ann_pred <- predict(ann, newdata = test_data, na.rm=TRUE, type='raw')
+ann_pred <- predict(ann, newdata = test_data, type='raw')
 
-sum(ann_pred[is.na(ann_pred[,V1])])
-
-sum(ann_pred, na.rm = T)
+count(ann_pred, na.rm = T)
 
 if(!require('caret')) install.packages('caret')
 library(caret)
