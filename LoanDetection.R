@@ -264,11 +264,13 @@ sum(is.na(test_data$max_prolong))
 pos_cases <- application_train[application_train$TARGET == 1,c('SK_ID_CURR')]
 neg_cases <- application_train[application_train$TARGET == 0,c('SK_ID_CURR')]
 #GOING TO TRY TO USE AS MUCH DATA AS POSSIBLE
-neg_index <- sample(neg_cases, length(pos_cases)*2)
+neg_index <- sample(neg_cases, length(pos_cases))
 balanced_ids <- c(pos_cases, neg_cases[neg_index])
 balanced_data <- data.frame(id=balanced_ids)
 
-balanced_data <- merge(balanced_data, final_data, by = 'id')
+balanced_data <- merge(balanced_data, final_data, by.x = 'id', by.y = 'id')
+
+balanced_data[balanced_data$class == 0,]
 
 #simple nn
 #ONLY USING THE GENERATED FEATURES FOR FIRST ITERATION
@@ -354,28 +356,56 @@ rf_data <- final_data
 use_cols <- c('class', 'days_birth', 'overdue_ratio', 'annuity_vs_income', 'days_emp', 'credit_vs_income', 'amt_income_total', 'price_vs_loan')
 rf_data$class <- as.factor(rf_data$class)
 rf_data <- rf_data[,use_cols]
-f <- as.formula(paste("class ~", paste(use_cols[!use_cols %in% c("class")], collapse = " + ")))
+n <- names(rf_data)
+f <- as.formula(paste("class ~", paste(n[!n %in% c("class", "id")], collapse = " + ")))
 mtry <- tuneRF(rf_data[-1], rf_data$class, ntreeTry=200,  stepFactor=1.5, improve=0.01, trace=TRUE, plot=TRUE)
 
-model <- randomForest(f, data=rf_data, ntree=200, mtry=2)
+model <- randomForest(f, data=rf_data, ntree=200, mtry=3)
 
 #Feature Importance
 varImpPlot(model)
 print(model)
 
-rf_pred <- predict(model,newdata = test_data,type = "class")
+rf_pred <- predict(model, newdata = test_data, type = "class")
 print(rf_pred)
+
+#Try caret cus everything else sucks
+if(!require(caret)) install.packages("caret")
+library(caret)
+
+rf_data <- balanced_data
+#use_cols <- c('class', 'days_birth', 'overdue_ratio', 'annuity_vs_income', 'days_emp', 'credit_vs_income', 'amt_income_total', 'price_vs_loan')
+rf_data$class <- as.factor(rf_data$class)
+#rf_data <- rf_data[,use_cols]
+n <- names(rf_data)
+f <- as.formula(paste("class ~", paste(n[!n %in% c("class", "id")], collapse = " + ")))
+
+fit_control <- trainControl(method = "cv",
+                            number = 10)
+
+model <- train(f, rf_data, trControl=fit_control, metric = 'Accuracy')
+
+print(model)
+
+caret_pred <- predict(model, newdata = test_data, type='raw')
+print(caret_pred)
+
 
 if(!require('gbm')) install.packages('gbm')
 library(gbm)
-rf_data <- rf_data[,!names(rf_data) %in% c('max_dpd')]
-rf_data$class <- application_train$TARGET
+rf_data <- balanced_data
+use_cols <- c('class', 'days_birth', 'overdue_ratio', 'annuity_vs_income', 'days_emp', 'credit_vs_income', 'amt_income_total', 'price_vs_loan')
+rf_data$class <- as.factor(rf_data$class)
+rf_data <- rf_data[,use_cols]
+n <- names(rf_data)
+f <- as.formula(paste("class ~", paste(n[!n %in% c("class", "id")], collapse = " + ")))
 attach(rf_data)
 head(rf_data)
 print(names(rf_data))
-gbm <- gbm(f, rf_data, n.trees = 10, distribution = "bernoulli")
+gbm <- gbm(f, rf_data, n.trees = 50, distribution = "bernoulli")
 detach(rf_data)
 gbm_pred <- predict(gbm, newdata = test_data, n.trees = 10)
+print(gbm)
 print(gbm_pred)
 
 out_data <- data.frame(SK_ID_CURR=application_test$SK_ID_CURR)
