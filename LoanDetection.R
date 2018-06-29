@@ -77,18 +77,19 @@ final_data$class <- application_train$TARGET
 final_data$credit_vs_income <- application_train$AMT_CREDIT/application_train$AMT_INCOME_TOTAL
 final_data$annuity_vs_income <- application_train$AMT_ANNUITY/application_train$AMT_INCOME_TOTAL
 final_data$price_vs_loan <- application_train$AMT_GOODS_PRICE/application_train$AMT_CREDIT
-final_data$flag_own_car <- application_train$FLAG_OWN_CAR
-final_data$flag_own_reality <- application_train$FLAG_OWN_REALTY
-final_data$cnt_children <- application_train$CNT_CHILDREN
-final_data$amt_income_total <- application_train$AMT_INCOME_TOTAL
-final_data$days_birth <- application_train$DAYS_BIRTH
-final_data$days_emp <- application_train$DAYS_EMPLOYED
-final_data$obs_social_30 <- application_train$OBS_30_CNT_SOCIAL_CIRCLE
-final_data$def_social_30 <- application_train$DEF_30_CNT_SOCIAL_CIRCLE
-final_data$obs_social_60 <- application_train$OBS_60_CNT_SOCIAL_CIRCLE
-final_data$def_social_60 <- application_train$DEF_60_CNT_SOCIAL_CIRCLE
-final_data$contract_type <- application_train$NAME_CONTRACT_TYPE
+#final_data$flag_own_car <- application_train$FLAG_OWN_CAR
+#final_data$flag_own_reality <- application_train$FLAG_OWN_REALTY
+#final_data$cnt_children <- application_train$CNT_CHILDREN
+#final_data$amt_income_total <- application_train$AMT_INCOME_TOTAL
+#final_data$days_birth <- application_train$DAYS_BIRTH
+#final_data$days_emp <- application_train$DAYS_EMPLOYED
+#final_data$obs_social_30 <- application_train$OBS_30_CNT_SOCIAL_CIRCLE
+#final_data$def_social_30 <- application_train$DEF_30_CNT_SOCIAL_CIRCLE
+#final_data$obs_social_60 <- application_train$OBS_60_CNT_SOCIAL_CIRCLE
+#final_data$def_social_60 <- application_train$DEF_60_CNT_SOCIAL_CIRCLE
+#final_data$contract_type <- application_train$NAME_CONTRACT_TYPE
 #Generate feature for bad debt or sold credit report status
+final_data <- merge(final_data, application_train[,!names(application_train) %in% c('AMT_CREDIT', "AMT_ANNUITY", 'AMT_GOODS_PRICE', 'AMT_CREDIT')], by.x = 'id', by.y = 'SK_ID_CURR')
 bad_records <- filter(app_bur, app_bur$CREDIT_ACTIVE %in% c('Bad debt', 'Sold'))
 #I'm dumb AF
 final_data$status_flag <- ifelse(final_data$id %in% bad_records$SK_ID_CURR, 1, 0)
@@ -134,9 +135,34 @@ final_data$max_dpd <- as.numeric(final_data$x)
 
 #DROP COLUMNS THAT NEEDED TO BE RENAMED 
 #THIS IS A RESULT OF PACKAGES RENAMING BY DEFAULT
-drops <- c('x.x', 'x.y', 'Freq', 'max_prolong', 'x')
+drops <- c('x.x', 'x.y', 'Freq', 'max_prolong', 'x', 'max_dpd', 'overdue')
 final_data <- final_data[,!(names(final_data) %in% drops)]
+final_data <- final_data[, -which(colMeans(is.na(final_data)) > 0.3)]
+final_data <- final_data[complete.cases(final_data),]
 #final_data <- subset(final_data, select = -c('x.x', 'x.y', 'Freq', 'TARGET'))
+
+#THIS WILL HOPEFULLY FIX THE "ALL 0 OUTPUT ISSUE"... NOW THEYRE MAJORITY 1 WTF
+pos_cases <- application_train[application_train$TARGET == 1,c('SK_ID_CURR')]
+neg_cases <- application_train[application_train$TARGET == 0,c('SK_ID_CURR')]
+sum(is.na(pos_cases))
+sum(is.na(neg_cases))
+#GOING TO TRY TO USE AS MUCH DATA AS POSSIBLE
+neg_index <- sample(neg_cases, length(pos_cases))
+print(neg_index)
+sum(is.na(neg_index))
+balanced_ids <- c(pos_cases, neg_index)
+#sum(is.na(balanced_ids))
+balanced_data <- data.frame(id=balanced_ids)
+balanced_data[is.na(balanced_data$id),]
+balanced_data <- merge(balanced_data, final_data, by = 'id')
+
+auc_index <- sample(neg_cases[-neg_index], length(pos_cases)/2)
+auc_index
+auc_data <- data.frame(id=auc_index)
+auc_data <- merge(auc_data, final_data, by = 'id')
+#bad_records <- filter(app_bur, app_bur$CREDIT_ACTIVE %in% c('Bad debt', 'Sold'))
+#I'm dumb AF
+#auc_data$status_flag <- ifelse(final_data$id %in% bad_records$SK_ID_CURR, 1, 0)
 
 #FACTORIZE INT DATA WITH LOW MAX VALUES
 #max(final_data$max_prolong)
@@ -154,17 +180,18 @@ test_data <- data.frame(id=application_test$SK_ID_CURR)
 test_data$credit_vs_income <- application_test$AMT_CREDIT/application_test$AMT_INCOME_TOTAL
 test_data$annuity_vs_income <- application_test$AMT_ANNUITY/application_test$AMT_INCOME_TOTAL
 test_data$price_vs_loan <- application_test$AMT_GOODS_PRICE/application_test$AMT_CREDIT
-test_data$flag_own_car <- application_test$FLAG_OWN_CAR
-test_data$flag_own_reality <- application_test$FLAG_OWN_REALTY
-test_data$cnt_children <- application_test$CNT_CHILDREN
-test_data$amt_income_total <- application_test$AMT_INCOME_TOTAL
-test_data$days_birth <- application_test$DAYS_BIRTH
-test_data$days_emp <- application_test$DAYS_EMPLOYED
-test_data$obs_social_30 <- application_test$OBS_30_CNT_SOCIAL_CIRCLE
-test_data$def_social_30 <- application_test$DEF_30_CNT_SOCIAL_CIRCLE
-test_data$obs_social_60 <- application_test$OBS_60_CNT_SOCIAL_CIRCLE
-test_data$def_social_60 <- application_test$DEF_60_CNT_SOCIAL_CIRCLE
-test_data$contract_type <- application_test$NAME_CONTRACT_TYPE
+#test_data$flag_own_car <- application_test$FLAG_OWN_CAR
+#test_data$flag_own_reality <- application_test$FLAG_OWN_REALTY
+#test_data$cnt_children <- application_test$CNT_CHILDREN
+#test_data$amt_income_total <- application_test$AMT_INCOME_TOTAL
+#test_data$days_birth <- application_test$DAYS_BIRTH
+#test_data$days_emp <- application_test$DAYS_EMPLOYED
+#test_data$obs_social_30 <- application_test$OBS_30_CNT_SOCIAL_CIRCLE
+#test_data$def_social_30 <- application_test$DEF_30_CNT_SOCIAL_CIRCLE
+#test_data$obs_social_60 <- application_test$OBS_60_CNT_SOCIAL_CIRCLE
+#test_data$def_social_60 <- application_test$DEF_60_CNT_SOCIAL_CIRCLE
+#test_data$contract_type <- application_test$NAME_CONTRACT_TYPE
+test_data <- merge(test_data, application_test[,!names(application_test) %in% c('AMT_CREDIT', "AMT_ANNUITY", 'AMT_GOODS_PRICE', 'AMT_CREDIT')], by.x = 'id', by.y = 'SK_ID_CURR')
 #Generate feature for bad debt or sold credit report status
 bad_records <- filter(app_bur, app_bur$CREDIT_ACTIVE %in% c('Bad debt', 'Sold'))
 test_data$status_flag <- ifelse(test_data$id %in% bad_records$SK_ID_CURR, 1, 0)
@@ -213,35 +240,13 @@ test_data$max_dpd <- test_data$x
 
 #DROP COLUMNS THAT NEEDED TO BE RENAMED 
 #THIS IS A RESULT OF PACKAGES RENAMING BY DEFAULT
-drops <- c('x.x', 'x.y', 'x', 'Freq')
+drops <- c('x.x', 'x.y', 'x', 'Freq', 'max_dpd')
 test_data <- test_data[,!(names(test_data) %in% drops)]
+test_data <- test_data[,-(!names(final_data) %in% c('class'))]
+test_data <- merge(test_data, application_test, on.x = 'id', on.y = 'SK_ID_CURR')
 
 #FACTORIZE INT DATA?
 #test_data$max_prolong <- as.factor(test_data$max_prolong)
-
-#GONNA HAVE TO CLEAN (TRAIN)
-sum(is.na(final_data$credit_vs_income))
-sum(is.na(final_data$annuity_vs_income))
-sum(is.na(final_data$price_vs_loan))
-sum(is.na(final_data$status_flag))
-sum(is.na(final_data$CREDIT_TYPE))
-sum(is.na(final_data$overdue_ratio))
-sum(is.na(final_data$max_dpd))
-sum(is.na(final_data$max_prolong))
-#sum(is.na(final_data$count_overdue))
-sum(is.na(final_data$class))
-
-
-#GONNA HAVE TO CLEAN (TEST)
-sum(is.na(test_data$credit_vs_income))
-sum(is.na(test_data$annuity_vs_income))
-sum(is.na(test_data$price_vs_loan))
-sum(is.na(test_data$status_flag))
-sum(is.na(test_data$CREDIT_TYPE))
-sum(is.na(test_data$overdue_ratio))
-sum(is.na(test_data$max_dpd))
-sum(is.na(test_data$max_prolong))
-#sum(is.na(test_data$count_overdue))
 
 #COMPUTE VALUES
 #final_data$annuity_vs_income <- ifelse(is.na(final_data$annuity_vs_income), mean(final_data$annuity_vs_income, na.rm = TRUE), final_data$annuity_vs_income)
@@ -260,18 +265,6 @@ sum(is.na(test_data$max_prolong))
 #final_data$class <- as.numeric(final_data$class)
 #final_data$max_dpd <- as.numeric(final_data$max_dpd)
 
-#THIS WILL HOPEFULLY FIX THE "ALL 0 OUTPUT ISSUE"... NOW THEYRE MAJORITY 1 WTF
-pos_cases <- application_train[application_train$TARGET == 1,c('SK_ID_CURR')]
-neg_cases <- application_train[application_train$TARGET == 0,c('SK_ID_CURR')]
-#GOING TO TRY TO USE AS MUCH DATA AS POSSIBLE
-neg_index <- sample(neg_cases, length(pos_cases))
-balanced_ids <- c(pos_cases, neg_cases[neg_index])
-balanced_data <- data.frame(id=balanced_ids)
-
-balanced_data <- merge(balanced_data, final_data, by.x = 'id', by.y = 'id')
-
-balanced_data[balanced_data$class == 0,]
-
 #simple nn
 #ONLY USING THE GENERATED FEATURES FOR FIRST ITERATION
 #FURTHER ANALYSIS WILL BE DONE ON ADDING MORE FEATURES
@@ -281,6 +274,7 @@ library(randomForest)
 final_data <- na.roughfix(final_data)
 test_data <- na.roughfix(test_data)
 balanced_data <- na.roughfix(balanced_data)
+auc_data <- na.roughfix(auc_data)
 
 if(!require('nnet')) install.packages('nnet')
 library(nnet)
@@ -352,21 +346,69 @@ X <- final_data[ ,!(names(final_data) %in% c('class'))]
 
 if(!require('randomForest')) install.packages('randomForest')
 library(randomForest)
-rf_data <- final_data
-use_cols <- c('class', 'days_birth', 'overdue_ratio', 'annuity_vs_income', 'days_emp', 'credit_vs_income', 'amt_income_total', 'price_vs_loan')
+rf_data <- balanced_data
+#use_cols <- c('class', 'days_birth', 'overdue_ratio', 'annuity_vs_income', 'days_emp', 'credit_vs_income', 'amt_income_total', 'price_vs_loan')
 rf_data$class <- as.factor(rf_data$class)
-rf_data <- rf_data[,use_cols]
+#rf_data <- rf_data[,use_cols]
 n <- names(rf_data)
-f <- as.formula(paste("class ~", paste(n[!n %in% c("class", "id")], collapse = " + ")))
-mtry <- tuneRF(rf_data[-1], rf_data$class, ntreeTry=200,  stepFactor=1.5, improve=0.01, trace=TRUE, plot=TRUE)
+f <- as.formula(paste("class ~", paste(n[!n %in% c("class", "id", 'TARGET', 'ORGANIZATION_TYPE')], collapse = " + ")))
+f
+mtry <- tuneRF(rf_data[-2], rf_data$class, ntreeTry=200,  stepFactor=1.5, improve=0.01, trace=TRUE, plot=TRUE)
 
-model <- randomForest(f, data=rf_data, ntree=200, mtry=3)
+model <- randomForest(f, data=rf_data, ntree=500, mtry=8)
 
 #Feature Importance
 varImpPlot(model)
 print(model)
 
+auc_data$class <- as.factor(auc_data$class)
+auc_data$class <- factor(auc_data$class,levels = levels(rf_data$class))
+
+#cols_to_keep <- intersect(colnames(rf_data),colnames(test_data))
+#test_data <- test_data %>% mutate(funs(factor(., levels = level(test_data))))
+#test_data <- test_data[,!names(test_data) %in% c(cols_to_keep, c("class", "id", 'TARGET', 'ORGANIZATION_TYPE'))]
+levels(test_data$max_dpd)
+foreach(col=names(balanced_data)) %do% wtf(col)
+balanced_data[81]
+test_data$overdue_ratio
+balanced_data$overdue_ratio
+levels(balanced_data$NAME_TYPE_SUITE)
+levels(test_data$NAME_TYPE_SUITE)
+library(data.table)
+test_data <- setDT(balanced_data)[, names(balanced_data):= lapply(.SD, factor, levels=lvls)]
+test_data$CODE_GENDER <- factor(test_data$CODE_GENDER, levels = levels(balanced_data$CODE_GENDER))
 rf_pred <- predict(model, newdata = test_data, type = "class")
+
+#require and use ROCR
+if(!require('ROCR')) install.packages('ROCR')
+library('ROCR')
+
+#ggplot
+if(!require('ggplot2')) install.packages('ggplot2')
+library('ggplot2')
+library(caret)
+
+
+#AUC & ROC Curve
+sum(as.numeric(rf_pred))
+is.vector(auc_data$class)
+auc_data$class[1] <- 1
+auc_data$class
+rf_pred
+prediction <- prediction(as.vector(as.numeric(rf_pred)), as.vector(as.numeric(auc_data$class)))
+performance <- performance(prediction, measure = 'tpr', x.measure = 'fpr')
+
+auc <- performance(prediction, measure = 'auc')
+
+auc <- auc@y.values[[1]]
+roc.data <- data.frame(fpr=unlist(performance@x.values),
+                       tpr=unlist(performance@y.values),
+                       model='RF')
+ggplot(roc.data, aes(x=fpr, ymin=0, ymax=tpr)) +
+  geom_ribbon(alpha=0.2) +
+  geom_line(aes(y=tpr)) +
+  ggtitle(paste0('ROC Curve with AUC=', auc))
+
 print(rf_pred)
 
 #Try caret cus everything else sucks
@@ -404,7 +446,7 @@ head(rf_data)
 print(names(rf_data))
 gbm <- gbm(f, rf_data, n.trees = 50, distribution = "bernoulli")
 detach(rf_data)
-gbm_pred <- predict(gbm, newdata = test_data, n.trees = 10)
+gbm_pred <- predict(gbm, newdata = auc_data, n.trees = 10)
 print(gbm)
 print(gbm_pred)
 
